@@ -224,7 +224,8 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-if 'main_data_editor' in st.session_state and st.session_state.main_data_editor['edited_rows']:
+# Check for edits to display a message, with the fix
+if 'main_data_editor' in st.session_state and 'edited_rows' in st.session_state.main_data_editor and st.session_state.main_data_editor['edited_rows']:
     edited_rows = st.session_state.main_data_editor['edited_rows']
     edited_cols = st.session_state.main_data_editor['edited_columns']
 
@@ -351,7 +352,6 @@ st.subheader("Download ตารางตีก๊วน")
 if st.session_state.results:
     date_text_for_image = st.session_state.current_date.strftime("%d/%m/%Y")
     
-    # Pass the list of active columns to the function
     columns_to_include_in_image = ["Name", "Time", "Total /", "Price"] + st.session_state.current_game_cols
     
     image_bytes = dataframe_to_image(st.session_state.df, date_text_for_image, columns_to_include_in_image)
