@@ -243,11 +243,11 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-# --- MODIFIED: Adjusted column widths and kept pins ---
+# --- MODIFIED: The index column width is now explicitly set to 50 pixels ---
 column_configuration = {
     "_index": st.column_config.Column(
         "No.",
-        width="small",
+        width=50, # Changed from "small" to a fixed pixel value
         disabled=True,
         pinned="left",
     ),
