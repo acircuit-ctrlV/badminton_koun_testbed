@@ -91,7 +91,9 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
     }
 
     # Convert the processed list of lists back to a DataFrame
-    updated_table_df = pd.DataFrame(processed_data, columns=table_data_df.columns, index=table_data_df.index)
+    # --- MODIFIED: Create a new index based on the length of processed_data ---
+    new_index = np.arange(1, len(processed_data) + 1)
+    updated_table_df = pd.DataFrame(processed_data, columns=table_data_df.columns, index=new_index)
     return updated_table_df, results
 
 
@@ -340,3 +342,4 @@ if st.session_state.results:
     )
 else:
     st.info("Calculate the results first to enable the download button.")
+
