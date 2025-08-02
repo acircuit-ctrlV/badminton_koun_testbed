@@ -59,9 +59,9 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
                 processed_data[i].append('')
             processed_data[i][3] = (total_row_slashes * walkin_val) + walkin_val
 
-    # Ensure enough rows exist for calculations at row 22 and 23 (indices 21 and 22)
-    while len(processed_data) < 23:
-        processed_data.append([''] * len(table_data_df.columns))
+    # --- REMOVED: This block of code was padding the table with empty rows
+    # while len(processed_data) < 23:
+    #     processed_data.append([''] * len(table_data_df.columns))
 
     sum_d = 0  # Sum of 'Total /' column
     sum_e = 0  # Sum of 'Price' column
@@ -243,7 +243,6 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-# --- MODIFIED: Restored editing for Time and game columns ---
 column_configuration = {
     "_index": st.column_config.Column(
         "No.",
@@ -259,7 +258,6 @@ column_configuration = {
     "Time": st.column_config.TextColumn(
         "Time",
         width="small",
-        # Removed: disabled=True
     ),
     "Total /": st.column_config.NumberColumn(
         "Total /",
@@ -272,9 +270,6 @@ column_configuration = {
         disabled=True,
     ),
 }
-
-# The loop for game columns is now removed as they should be editable
-# The code will now use the default editable behavior for these columns
 
 edited_df = st.data_editor(
     st.session_state.df,
@@ -298,7 +293,6 @@ if st.button("Calculate"):
 
     df_to_process = st.session_state.df.fillna('')
 
-    # This variable now correctly holds the count of all valid rows
     dynamic_last_row_to_process = len(df_to_process)
 
     if dynamic_last_row_to_process == 0:
@@ -309,7 +303,6 @@ if st.button("Calculate"):
         if len(df_to_process.columns) >= 24:
             for col_idx in range(4, 24):
                 if col_idx < len(df_to_process.columns):
-                    # The slice df_to_process.iloc[:dynamic_last_row_to_process] now correctly checks all rows
                     total_slashes_in_column = df_to_process.iloc[:dynamic_last_row_to_process, col_idx].astype(str).str.count('l').sum()
                     if total_slashes_in_column % 4 != 0:
                         invalid_columns.append(df_to_process.columns[col_idx])
