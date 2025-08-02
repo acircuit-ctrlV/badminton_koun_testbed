@@ -29,7 +29,7 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
             continue
 
         total_row_slashes = 0
-        for col_idx in range(4, len(table_data_df.columns)):
+        for col_idx in range(4, 24):
             if col_idx < len(processed_data[i]):
                 cell_value = str(processed_data[i][col_idx])
                 total_row_slashes += cell_value.count('l')
@@ -81,17 +81,11 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
     return updated_table_df, results
 
 
-def dataframe_to_image(df, date_text="", columns_to_show=None):
+def dataframe_to_image(df, date_text=""):
     """
     Converts a pandas DataFrame to a Pillow Image object with aligned columns,
-    and adds a title and a date. Only includes specified columns.
+    and adds a title and a date.
     """
-    # Filter the DataFrame to show only the specified columns
-    if columns_to_show:
-        df_filtered = df[columns_to_show]
-    else:
-        df_filtered = df
-
     try:
         font_path = "THSarabunNew.ttf"
         font = ImageFont.truetype(font_path, 20)
@@ -102,9 +96,9 @@ def dataframe_to_image(df, date_text="", columns_to_show=None):
         title_font = ImageFont.load_default()
 
     column_widths = {}
-    for col in df_filtered.columns:
+    for col in df.columns:
         header_width = font.getbbox(str(col))[2]
-        max_value_width = max([font.getbbox(str(item))[2] for item in df_filtered[col]]) if not df_filtered[col].empty else 0
+        max_value_width = max([font.getbbox(str(item))[2] for item in df[col]]) if not df[col].empty else 0
         column_widths[col] = max(header_width, max_value_width)
 
     column_padding = 10
@@ -118,7 +112,7 @@ def dataframe_to_image(df, date_text="", columns_to_show=None):
     title_height = title_font.getbbox(title_text)[3] - title_font.getbbox(title_text)[1]
     
     img_width = total_width + 40
-    img_height = title_height + line_height + 20 + header_height + (len(df_filtered) * row_height) + 40
+    img_height = title_height + line_height + 20 + header_height + (len(df) * row_height) + 40
     
     img = Image.new('RGB', (img_width, img_height), color='white')
     draw = ImageDraw.Draw(img)
@@ -145,15 +139,15 @@ def dataframe_to_image(df, date_text="", columns_to_show=None):
     y_offset = y_offset_start
     
     current_x = x_offset
-    for col in df_filtered.columns:
+    for col in df.columns:
         draw.text((current_x, y_offset), str(col), font=font, fill='black')
         current_x += column_widths[col] + column_padding
         
     y_offset += header_height
     
-    for _, row in df_filtered.iterrows():
+    for _, row in df.iterrows():
         current_x = x_offset
-        for col in df_filtered.columns:
+        for col in df.columns:
             draw.text((current_x, y_offset), str(row[col]), font=font, fill='black')
             current_x += column_widths[col] + column_padding
         y_offset += row_height
@@ -198,9 +192,6 @@ if 'warning_message' not in st.session_state:
 if 'current_date' not in st.session_state:
     st.session_state.current_date = date.today()
 
-if 'current_game_cols' not in st.session_state:
-    st.session_state.current_game_cols = ["game1", "game2", "game3", "game4", "game5"]
-
 st.title("คิดเงินค่าตีก๊วน")
 
 st.header("ใส่ข้อมูล")
@@ -224,8 +215,8 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-# Check for edits to display a message, with the fix
-if 'main_data_editor' in st.session_state and 'edited_rows' in st.session_state.main_data_editor and st.session_state.main_data_editor['edited_rows']:
+# Check for edits to display a message
+if 'main_data_editor' in st.session_state and st.session_state.main_data_editor['edited_rows']:
     edited_rows = st.session_state.main_data_editor['edited_rows']
     edited_cols = st.session_state.main_data_editor['edited_columns']
 
@@ -270,23 +261,8 @@ column_configuration = {
     ),
 }
 
-initial_column_order = ["Name", "Time", "Total /", "Price"] + st.session_state.current_game_cols
-
-if st.button("เพิ่มคอลัมน์ Game"):
-    next_game_number = len(st.session_state.current_game_cols) + 1
-    new_col_name = f"game{next_game_number}"
-    
-    if new_col_name in headers:
-        if new_col_name not in st.session_state.current_game_cols:
-            if new_col_name not in st.session_state.df.columns:
-                st.session_state.df[new_col_name] = ""
-            
-            st.session_state.current_game_cols.append(new_col_name)
-        else:
-            st.warning(f"Column '{new_col_name}' already exists.")
-    else:
-        st.warning("You have reached the maximum number of game columns.")
-    st.rerun()
+# Define the initial column order to be displayed
+initial_column_order = ["Name", "Time", "Total /", "Price", "game1", "game2", "game3", "game4", "game5"]
 
 edited_df = st.data_editor(
     st.session_state.df,
@@ -294,10 +270,10 @@ edited_df = st.data_editor(
     num_rows="dynamic",
     use_container_width=True,
     key="main_data_editor",
-    column_order=initial_column_order
+    column_order=initial_column_order  # <-- Pass the initial column order here
 )
 
-if st.button("Calculate", key="calculate_button"):
+if st.button("Calculate"):
     cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
     
     cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
@@ -315,15 +291,20 @@ if st.button("Calculate", key="calculate_button"):
         st.session_state.results = None
     else:
         invalid_columns = []
-        current_game_columns = [col for col in st.session_state.df.columns if col.startswith('game')]
-        
-        for col_name in current_game_columns:
-            total_slashes_in_column = df_to_process[col_name].astype(str).str.count('l').sum()
-            if total_slashes_in_column % 4 != 0:
-                invalid_columns.append(col_name)
+        if len(df_to_process.columns) >= 24:
+            for col_idx in range(4, 24):
+                if col_idx < len(df_to_process.columns):
+                    total_slashes_in_column = df_to_process.iloc[:dynamic_last_row_to_process, col_idx].astype(str).str.count('l').sum()
+                    if total_slashes_in_column % 4 != 0:
+                        invalid_columns.append(df_to_process.columns[col_idx])
+        else:
+            st.session_state.warning_message = "The table does not have enough columns for full game data validation (expected at least 24 columns for 'game1' to 'game20')."
 
         if invalid_columns:
-            st.session_state.warning_message = f"Game ที่ลูกเเบดไม่ลงตัว: {', '.join(invalid_columns)}"
+            if st.session_state.warning_message:
+                st.session_state.warning_message += f"\n\nAdditionally, the total slash count in the following columns is not divisible by 4: {', '.join(invalid_columns)}"
+            else:
+                st.session_state.warning_message = f"Game ที่ลูกเเบดไม่ลงตัว: {', '.join(invalid_columns)}"
 
         updated_df, results = process_table_data(
             df_to_process, shuttle_val, walkin_val, court_val, real_shuttle_val,
@@ -351,10 +332,7 @@ st.subheader("Download ตารางตีก๊วน")
 
 if st.session_state.results:
     date_text_for_image = st.session_state.current_date.strftime("%d/%m/%Y")
-    
-    columns_to_include_in_image = ["Name", "Time", "Total /", "Price"] + st.session_state.current_game_cols
-    
-    image_bytes = dataframe_to_image(st.session_state.df, date_text_for_image, columns_to_include_in_image)
+    image_bytes = dataframe_to_image(st.session_state.df, date_text_for_image)
 
     st.download_button(
         label="Download Table as Image",
