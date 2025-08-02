@@ -196,9 +196,12 @@ if 'warning_message' not in st.session_state:
     st.session_state.warning_message = ""
 if 'current_date' not in st.session_state:
     st.session_state.current_date = date.today()
+if 'show_scroll_message' not in st.session_state:
+    st.session_state.show_scroll_message = False
 
+# Start with game1 to game5 only
 if 'current_game_cols' not in st.session_state:
-    st.session_state.current_game_cols = ["game1", "game2", "game3", "game4", "game5"]
+    st.session_state.current_game_cols = headers[4:9]
 
 st.title("คิดเงินค่าตีก๊วน")
 
@@ -223,7 +226,7 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-# Check for edits to display a message, with the corrected fix
+# Check for edits to display a message
 if 'main_data_editor' in st.session_state and st.session_state.main_data_editor:
     edited_rows = st.session_state.main_data_editor.get('edited_rows', {})
     edited_cols = st.session_state.main_data_editor.get('edited_columns', {})
@@ -271,28 +274,22 @@ column_configuration = {
 
 initial_column_order = ["Name", "Time", "Total /", "Price"] + st.session_state.current_game_cols
 
-# New layout for adding multiple columns at once
-col_add_cols, col_add_button = st.columns([1, 1])
-with col_add_cols:
-    num_to_add = st.number_input("จำนวนคอลัมน์ Game ที่จะเพิ่ม:", min_value=1, value=1, step=1)
+if st.button("เพิ่มคอลัมน์ Game ถัดไป"):
+    next_game_number = len(st.session_state.current_game_cols) + 1
+    new_col_name = f"game{next_game_number}"
+    
+    if new_col_name in headers:
+        if new_col_name not in st.session_state.current_game_cols:
+            if new_col_name not in st.session_state.df.columns:
+                st.session_state.df[new_col_name] = ""
+            st.session_state.current_game_cols.append(new_col_name)
+            st.session_state.show_scroll_message = True
+            st.rerun()
+    else:
+        st.warning("คุณได้เพิ่มคอลัมน์ Game ครบจำนวนสูงสุดแล้ว")
 
-with col_add_button:
-    # Add a spacer to align the button better
-    st.write("") 
-    if st.button("เพิ่มคอลัมน์ Game"):
-        for i in range(int(num_to_add)):
-            next_game_number = len(st.session_state.current_game_cols) + 1
-            new_col_name = f"game{next_game_number}"
-            
-            if new_col_name in headers:
-                if new_col_name not in st.session_state.current_game_cols:
-                    if new_col_name not in st.session_state.df.columns:
-                        st.session_state.df[new_col_name] = ""
-                    st.session_state.current_game_cols.append(new_col_name)
-            else:
-                st.warning("You have reached the maximum number of game columns.")
-                break # Stop adding if we hit the max
-        st.rerun()
+if st.session_state.show_scroll_message:
+    st.info("เพิ่มคอลัมน์แล้ว! โปรดเลื่อนตารางไปทางขวาเพื่อดูคอลัมน์ใหม่")
 
 edited_df = st.data_editor(
     st.session_state.df,
@@ -304,6 +301,8 @@ edited_df = st.data_editor(
 )
 
 if st.button("Calculate", key="calculate_button"):
+    st.session_state.show_scroll_message = False
+
     cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
     
     cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
