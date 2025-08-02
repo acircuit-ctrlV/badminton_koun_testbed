@@ -15,6 +15,7 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
     processed_data = [list(row) for row in processed_data_list]
 
     total_shuttlecock_grand = 0
+    total_games = 0  # Initialize a counter for games played
 
     for i in range(last_row_to_process):
         if i >= len(processed_data):
@@ -33,6 +34,10 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
             if col_idx < len(processed_data[i]):
                 cell_value = str(processed_data[i][col_idx])
                 total_row_slashes += cell_value.count('l')
+        
+        # Increment the total games counter if this row has at least one slash
+        # This logic needs to be more precise. We should count columns, not rows.
+        # Let's move the game count logic outside the row loop.
 
         total_shuttlecock_grand += total_row_slashes
 
@@ -49,6 +54,17 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
             while len(processed_data[i]) <= 3:
                 processed_data[i].append('')
             processed_data[i][3] = (total_row_slashes * walkin_val) + walkin_val
+
+    # Calculate total games from the entire table after processing all rows
+    # A game is considered played if at least one cell in that column has 'l'
+    for col_idx in range(4, 24):
+        column_contains_slash = False
+        for i in range(last_row_to_process):
+            if col_idx < len(processed_data[i]) and 'l' in str(processed_data[i][col_idx]):
+                column_contains_slash = True
+                break
+        if column_contains_slash:
+            total_games += 1
 
     sum_d = 0
     sum_e = 0
@@ -70,6 +86,7 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
 
     results = {
         "total_slashes": total_shuttlecock_grand,
+        "total_games": total_games,  # Add total games to the results
         "old_solution_sum": old_solution_sum,
         "net_price_sum": sum_e,
         "new_solution_minus_old_solution": sum_e - old_solution_sum,
@@ -84,7 +101,7 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
 def dataframe_to_image(df, date_text=""):
     """
     Converts a pandas DataFrame to a Pillow Image object with aligned columns,
-    and adds a title and a date. Only includes game columns that have 'l' marks.
+    and adds a title and a date.
     """
     try:
         font_path = "THSarabunNew.ttf"
@@ -96,17 +113,14 @@ def dataframe_to_image(df, date_text=""):
         title_font = ImageFont.load_default()
 
     # Determine which columns to include in the image.
-    # We will only include the "game" columns that have at least one 'l'.
     game_columns = [col for col in df.columns if col.startswith('game')]
     columns_to_include = ["Name", "Time", "Total /", "Price"]
     for col in game_columns:
         if df[col].astype(str).str.contains('l').any():
             columns_to_include.append(col)
 
-    # Create a new DataFrame with only the selected columns.
     df_for_image = df[columns_to_include].copy()
-
-    # Recalculate column widths based on the new DataFrame
+    
     column_widths = {}
     for col in df_for_image.columns:
         header_width = font.getbbox(str(col))[2]
@@ -235,7 +249,6 @@ if 'main_data_editor' in st.session_state:
     if edited_rows:
         edited_row_key = next(iter(edited_rows))
         try:
-            # Handle both integer and string keys for the index
             row_index = int(edited_row_key) + 1
         except (ValueError, TypeError):
             row_index = edited_row_key
@@ -283,9 +296,6 @@ edited_df = st.data_editor(
 )
 
 if st.button("Calculate"):
-    # Ensure all data in the edited_df is processed before cleaning.
-    # The data editor can sometimes have new rows with NaN or None values.
-    # We must handle that.
     cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
     
     cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
@@ -332,10 +342,11 @@ if st.session_state.warning_message:
 
 st.header("สรุป")
 if st.session_state.results:
+    st.write(f"**จำนวนเกมที่เล่น:** {st.session_state.results['total_games']}")
     st.write(f"**จำนวนลูกเเบดที่ใช้ทั้งหมด:** {st.session_state.results['total_slashes']/4} units")
-    st.write(f"**คิดราคาเเบบเก่า:** {st.session_state.results['old_solution_sum']}")
-    st.write(f"**คิดราคาเเบบใหม่:** {st.session_state.results['net_price_sum']}")
-    st.write(f"**ราคาใหม่ - ราคาเก่า:** {st.session_state.results['new_solution_minus_old_solution']}")
+    st.write(f"**คิดราคาเเบบเก่า:** {st.session_state.results['old_solution_sum']:.2f}")
+    st.write(f"**คิดราคาเเบบใหม่:** {st.session_state.results['net_price_sum']:.2f}")
+    st.write(f"**ราคาใหม่ - ราคาเก่า:** {st.session_state.results['new_solution_minus_old_solution']:.2f}")
 elif st.session_state.results is None and not st.session_state.warning_message:
     st.write("No calculations performed yet or no valid data to process.")
 
