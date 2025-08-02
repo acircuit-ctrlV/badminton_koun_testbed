@@ -91,7 +91,7 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
     }
 
     # Convert the processed list of lists back to a DataFrame
-    updated_table_df = pd.DataFrame(processed_data, columns=table_data_df.columns)
+    updated_table_df = pd.DataFrame(processed_data, columns=table_data_df.columns, index=table_data_df.index)
     return updated_table_df, results
 
 
@@ -207,7 +207,10 @@ for row in initial_data_list:
         row.append("")
 
 if 'df' not in st.session_state:
-    st.session_state.df = pd.DataFrame(initial_data_list, columns=headers)
+    # --- MODIFIED: Create a new DataFrame with a 1-based index ---
+    initial_df = pd.DataFrame(initial_data_list, columns=headers)
+    initial_df.index = np.arange(1, len(initial_df) + 1)
+    st.session_state.df = initial_df
 if 'results' not in st.session_state:
     st.session_state.results = None
 if 'warning_message' not in st.session_state:
@@ -240,18 +243,22 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-# --- MODIFIED: Pinned only Index and Name columns ---
+# --- MODIFIED: Adjusted column widths and kept pins ---
 column_configuration = {
     "_index": st.column_config.Column(
-        "Index",
+        "No.",
         width="small",
         disabled=True,
         pinned="left",
     ),
     "Name": st.column_config.TextColumn(
         "Name",
-        width="medium",
+        width="small",
         pinned="left",
+    ),
+    "Time": st.column_config.TextColumn(
+        "Time",
+        width="small",
     ),
 }
 
@@ -274,7 +281,8 @@ if st.button("Calculate"):
     dynamic_last_row_to_process = 0
     for idx, row in df_to_process.iterrows():
         if str(row['Name']).strip():
-            dynamic_last_row_to_process = idx + 1
+            # Use iloc here to handle the custom index
+            dynamic_last_row_to_process = df_to_process.index.get_loc(idx) + 1
 
     if dynamic_last_row_to_process == 0:
         st.warning("No names found in the table to process. Please enter data in the 'Name' column.")
