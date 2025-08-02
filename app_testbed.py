@@ -240,13 +240,33 @@ with col4:
 
 st.header("ตารางก๊วน")
 
+# --- MODIFIED: Added column_config for pinning columns ---
+column_configuration = {
+    "_index": st.column_config.Column(
+        "Index",
+        width="small",
+        disabled=True,
+        pinned="left",
+    ),
+    "Name": st.column_config.TextColumn(
+        "Name",
+        width="medium",
+        pinned="left",
+    ),
+    "Time": st.column_config.TextColumn(
+        "Time",
+        width="small",
+        pinned="left",
+    ),
+}
+
 edited_df = st.data_editor(
     st.session_state.df,
+    column_config=column_configuration, # Pass the configuration here
     num_rows="dynamic",
     use_container_width=True,
     key="main_data_editor"
 )
-
 
 
 if st.button("Calculate"):
@@ -317,5 +337,3 @@ if st.session_state.results:
     )
 else:
     st.info("Calculate the results first to enable the download button.")
-
-
