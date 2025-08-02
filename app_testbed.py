@@ -29,7 +29,7 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
             continue
 
         total_row_slashes = 0
-        for col_idx in range(4, 24):
+        for col_idx in range(4, len(table_data_df.columns)):  # Iterate through all available columns
             if col_idx < len(processed_data[i]):
                 cell_value = str(processed_data[i][col_idx])
                 total_row_slashes += cell_value.count('l')
@@ -192,6 +192,11 @@ if 'warning_message' not in st.session_state:
 if 'current_date' not in st.session_state:
     st.session_state.current_date = date.today()
 
+# New session state for dynamic columns
+if 'current_game_cols' not in st.session_state:
+    # Start with the first 5 game columns
+    st.session_state.current_game_cols = ["game1", "game2", "game3", "game4", "game5"]
+
 st.title("คิดเงินค่าตีก๊วน")
 
 st.header("ใส่ข้อมูล")
@@ -261,19 +266,40 @@ column_configuration = {
     ),
 }
 
-# Define the initial column order to be displayed
-initial_column_order = ["Name", "Time", "Total /", "Price", "game1", "game2", "game3", "game4", "game5"]
+# Combine fixed columns with the dynamic game columns
+initial_column_order = ["Name", "Time", "Total /", "Price"] + st.session_state.current_game_cols
 
+# Create a button to add a new game column
+if st.button("เพิ่มคอลัมน์ Game"):
+    next_game_number = len(st.session_state.current_game_cols) + 1
+    new_col_name = f"game{next_game_number}"
+    
+    # Check if we have not reached the max number of game columns from the initial headers
+    if new_col_name in headers:
+        if new_col_name not in st.session_state.current_game_cols:
+            # First, update the DataFrame by adding the new column if it doesn't exist
+            if new_col_name not in st.session_state.df.columns:
+                st.session_state.df[new_col_name] = ""
+            
+            # Then, update the list of columns to be displayed
+            st.session_state.current_game_cols.append(new_col_name)
+        else:
+            st.warning(f"Column '{new_col_name}' already exists.")
+    else:
+        st.warning("You have reached the maximum number of game columns.")
+    st.rerun()
+
+# Use the dynamically updated list of columns
 edited_df = st.data_editor(
     st.session_state.df,
     column_config=column_configuration,
     num_rows="dynamic",
     use_container_width=True,
     key="main_data_editor",
-    column_order=initial_column_order  # <-- Pass the initial column order here
+    column_order=initial_column_order
 )
 
-if st.button("Calculate"):
+if st.button("Calculate", key="calculate_button"):
     cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
     
     cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
@@ -291,20 +317,16 @@ if st.button("Calculate"):
         st.session_state.results = None
     else:
         invalid_columns = []
-        if len(df_to_process.columns) >= 24:
-            for col_idx in range(4, 24):
-                if col_idx < len(df_to_process.columns):
-                    total_slashes_in_column = df_to_process.iloc[:dynamic_last_row_to_process, col_idx].astype(str).str.count('l').sum()
-                    if total_slashes_in_column % 4 != 0:
-                        invalid_columns.append(df_to_process.columns[col_idx])
-        else:
-            st.session_state.warning_message = "The table does not have enough columns for full game data validation (expected at least 24 columns for 'game1' to 'game20')."
+        # Check only the columns that are currently displayed
+        current_game_columns = [col for col in st.session_state.df.columns if col.startswith('game')]
+        
+        for col_name in current_game_columns:
+            total_slashes_in_column = df_to_process[col_name].astype(str).str.count('l').sum()
+            if total_slashes_in_column % 4 != 0:
+                invalid_columns.append(col_name)
 
         if invalid_columns:
-            if st.session_state.warning_message:
-                st.session_state.warning_message += f"\n\nAdditionally, the total slash count in the following columns is not divisible by 4: {', '.join(invalid_columns)}"
-            else:
-                st.session_state.warning_message = f"Game ที่ลูกเเบดไม่ลงตัว: {', '.join(invalid_columns)}"
+            st.session_state.warning_message = f"Game ที่ลูกเเบดไม่ลงตัว: {', '.join(invalid_columns)}"
 
         updated_df, results = process_table_data(
             df_to_process, shuttle_val, walkin_val, court_val, real_shuttle_val,
