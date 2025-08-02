@@ -219,7 +219,13 @@ st.header("ตารางก๊วน")
 
 if 'main_data_editor' in st.session_state and st.session_state.main_data_editor['edited_rows']:
     edited_row_key = next(iter(st.session_state.main_data_editor['edited_rows']))
-    st.session_state.highlighted_row_index = edited_row_key
+    
+    # --- FIXED: Correctly handle 0-based Ag-Grid index to 1-based DataFrame index ---
+    try:
+        ag_grid_row_index = int(edited_row_key)
+        st.session_state.highlighted_row_index = ag_grid_row_index + 1
+    except (ValueError, TypeError):
+        st.session_state.highlighted_row_index = None
 else:
     st.session_state.highlighted_row_index = None
     
@@ -227,7 +233,6 @@ else:
 highlighted_index = st.session_state.highlighted_row_index if st.session_state.highlighted_row_index is not None else -1
 
 df_to_display = st.session_state.df.copy()
-# Insert a new column to be the visible, styled column
 df_to_display.insert(0, 'Name (Highlight)', df_to_display['Name'])
 
 column_configuration = {
@@ -250,13 +255,13 @@ column_configuration = {
             }}
         }}
         ''',
-        disabled=True # This column is for display only
+        disabled=True
     ),
     "Name": st.column_config.TextColumn(
         "Name",
         width="small",
         pinned="left",
-        hidden=True # This is the editable column, hidden from view
+        hidden=True
     ),
     "Time": st.column_config.TextColumn(
         "Time",
@@ -284,12 +289,8 @@ edited_df = st.data_editor(
 
 
 if st.button("Calculate"):
-    # The `edited_df` contains both the editable 'Name' and the display 'Name (Highlight)'
-    # The actual edits are in the 'Name' column.
-    
     cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
     
-    # Drop the display-only column
     cleaned_df.drop('Name (Highlight)', axis=1, inplace=True)
     
     cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
