@@ -240,7 +240,7 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-# --- MODIFIED: Added column_config for pinning columns ---
+# --- MODIFIED: Pinned only Index and Name columns ---
 column_configuration = {
     "_index": st.column_config.Column(
         "Index",
@@ -251,11 +251,6 @@ column_configuration = {
     "Name": st.column_config.TextColumn(
         "Name",
         width="medium",
-        pinned="left",
-    ),
-    "Time": st.column_config.TextColumn(
-        "Time",
-        width="small",
         pinned="left",
     ),
 }
