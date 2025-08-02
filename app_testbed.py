@@ -29,7 +29,7 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
             continue
 
         total_row_slashes = 0
-        for col_idx in range(4, len(table_data_df.columns)):
+        for col_idx in range(4, 24):
             if col_idx < len(processed_data[i]):
                 cell_value = str(processed_data[i][col_idx])
                 total_row_slashes += cell_value.count('l')
@@ -81,16 +81,11 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
     return updated_table_df, results
 
 
-def dataframe_to_image(df, date_text="", columns_to_show=None):
+def dataframe_to_image(df, date_text=""):
     """
     Converts a pandas DataFrame to a Pillow Image object with aligned columns,
-    and adds a title and a date. Only includes specified columns.
+    and adds a title and a date.
     """
-    if columns_to_show:
-        df_filtered = df[columns_to_show]
-    else:
-        df_filtered = df
-
     try:
         font_path = "THSarabunNew.ttf"
         font = ImageFont.truetype(font_path, 20)
@@ -101,9 +96,9 @@ def dataframe_to_image(df, date_text="", columns_to_show=None):
         title_font = ImageFont.load_default()
 
     column_widths = {}
-    for col in df_filtered.columns:
+    for col in df.columns:
         header_width = font.getbbox(str(col))[2]
-        max_value_width = max([font.getbbox(str(item))[2] for item in df_filtered[col]]) if not df_filtered[col].empty else 0
+        max_value_width = max([font.getbbox(str(item))[2] for item in df[col]]) if not df[col].empty else 0
         column_widths[col] = max(header_width, max_value_width)
 
     column_padding = 10
@@ -114,10 +109,10 @@ def dataframe_to_image(df, date_text="", columns_to_show=None):
     row_height = line_height + 5
     
     title_text = "ตารางก๊วน"
-    title_height = title_font.getbbox(title_text)[3] - title_font.getbbox("A")[1]
+    title_height = title_font.getbbox(title_text)[3] - title_font.getbbox(title_text)[1]
     
     img_width = total_width + 40
-    img_height = title_height + line_height + 20 + header_height + (len(df_filtered) * row_height) + 40
+    img_height = title_height + line_height + 20 + header_height + (len(df) * row_height) + 40
     
     img = Image.new('RGB', (img_width, img_height), color='white')
     draw = ImageDraw.Draw(img)
@@ -127,7 +122,7 @@ def dataframe_to_image(df, date_text="", columns_to_show=None):
     
     draw.text((x_offset, y_offset), title_text, font=title_font, fill='black')
     
-    date_x = x_offset + font.getbbox(title_text)[2] + 20
+    date_x = x_offset + title_font.getbbox(title_text)[2] + 20
     date_y = y_offset + (title_height - (font.getbbox(date_text)[3] - font.getbbox(date_text)[1])) / 2
     draw.text((date_x, date_y), date_text, font=font, fill='black')
     
@@ -144,15 +139,15 @@ def dataframe_to_image(df, date_text="", columns_to_show=None):
     y_offset = y_offset_start
     
     current_x = x_offset
-    for col in df_filtered.columns:
+    for col in df.columns:
         draw.text((current_x, y_offset), str(col), font=font, fill='black')
         current_x += column_widths[col] + column_padding
         
     y_offset += header_height
     
-    for _, row in df_filtered.iterrows():
+    for _, row in df.iterrows():
         current_x = x_offset
-        for col in df_filtered.columns:
+        for col in df.columns:
             draw.text((current_x, y_offset), str(row[col]), font=font, fill='black')
             current_x += column_widths[col] + column_padding
         y_offset += row_height
@@ -196,12 +191,8 @@ if 'warning_message' not in st.session_state:
     st.session_state.warning_message = ""
 if 'current_date' not in st.session_state:
     st.session_state.current_date = date.today()
-if 'show_scroll_message' not in st.session_state:
-    st.session_state.show_scroll_message = False
-
-# Start with game1 to game5 only
-if 'current_game_cols' not in st.session_state:
-    st.session_state.current_game_cols = headers[4:9]
+if 'highlighted_row_index' not in st.session_state:
+    st.session_state.highlighted_row_index = None
 
 st.title("คิดเงินค่าตีก๊วน")
 
@@ -226,23 +217,23 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-# Check for edits to display a message
-if 'main_data_editor' in st.session_state and st.session_state.main_data_editor:
-    edited_rows = st.session_state.main_data_editor.get('edited_rows', {})
-    edited_cols = st.session_state.main_data_editor.get('edited_columns', {})
+if 'main_data_editor' in st.session_state and st.session_state.main_data_editor['edited_rows']:
+    edited_row_key = next(iter(st.session_state.main_data_editor['edited_rows']))
+    
+    # --- FIXED: Correctly handle 0-based Ag-Grid index to 1-based DataFrame index ---
+    try:
+        ag_grid_row_index = int(edited_row_key)
+        st.session_state.highlighted_row_index = ag_grid_row_index + 1
+    except (ValueError, TypeError):
+        st.session_state.highlighted_row_index = None
+else:
+    st.session_state.highlighted_row_index = None
+    
+# Use a default integer value for the highlight index to prevent errors in JavaScript
+highlighted_index = st.session_state.highlighted_row_index if st.session_state.highlighted_row_index is not None else -1
 
-    if edited_rows:
-        edited_row_key = next(iter(edited_rows))
-        try:
-            row_index = int(edited_row_key) + 1
-        except (ValueError, TypeError):
-            row_index = edited_row_key
-        
-        if edited_cols:
-            edited_col_name = next(iter(edited_cols))
-            st.warning(f"คุณกำลังแก้ไขแถวที่ **{row_index}**, คอลัมน์ **{edited_col_name}**")
-        else:
-            st.warning(f"คุณกำลังแก้ไขแถวที่ **{row_index}**")
+df_to_display = st.session_state.df.copy()
+df_to_display.insert(0, 'Name (Highlight)', df_to_display['Name'])
 
 column_configuration = {
     "_index": st.column_config.Column(
@@ -251,10 +242,26 @@ column_configuration = {
         disabled=True,
         pinned="left",
     ),
+    "Name (Highlight)": st.column_config.Column(
+        "Name",
+        width="small",
+        pinned="left",
+        cell_renderer=f'''
+        function(params) {{
+            if (params.data._index == {highlighted_index}) {{
+                return `<div style="border: 2px solid red; padding: 2px; text-align: center;">${{params.value}}</div>`;
+            }} else {{
+                return `<div style="text-align: center;">${{params.value}}</div>`;
+            }}
+        }}
+        ''',
+        disabled=True
+    ),
     "Name": st.column_config.TextColumn(
         "Name",
         width="small",
         pinned="left",
+        hidden=True
     ),
     "Time": st.column_config.TextColumn(
         "Time",
@@ -272,43 +279,25 @@ column_configuration = {
     ),
 }
 
-initial_column_order = ["Name", "Time", "Total /", "Price"] + st.session_state.current_game_cols
-
-if st.button("เพิ่มคอลัมน์ Game ถัดไป"):
-    next_game_number = len(st.session_state.current_game_cols) + 1
-    new_col_name = f"game{next_game_number}"
-    
-    if new_col_name in headers:
-        if new_col_name not in st.session_state.current_game_cols:
-            if new_col_name not in st.session_state.df.columns:
-                st.session_state.df[new_col_name] = ""
-            st.session_state.current_game_cols.append(new_col_name)
-            st.session_state.show_scroll_message = True
-            st.rerun()
-    else:
-        st.warning("คุณได้เพิ่มคอลัมน์ Game ครบจำนวนสูงสุดแล้ว")
-
-if st.session_state.show_scroll_message:
-    st.info("เพิ่มคอลัมน์แล้ว! โปรดเลื่อนตารางไปทางขวาเพื่อดูคอลัมน์ใหม่")
-
 edited_df = st.data_editor(
-    st.session_state.df,
+    df_to_display,
     column_config=column_configuration,
     num_rows="dynamic",
     use_container_width=True,
-    key="main_data_editor",
-    column_order=initial_column_order
+    key="main_data_editor"
 )
 
-if st.button("Calculate", key="calculate_button"):
-    st.session_state.show_scroll_message = False
 
+if st.button("Calculate"):
     cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
+    
+    cleaned_df.drop('Name (Highlight)', axis=1, inplace=True)
     
     cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
     
     st.session_state.df = cleaned_df
-    
+    st.session_state.highlighted_row_index = None
+
     st.session_state.warning_message = ""
 
     df_to_process = st.session_state.df.fillna('')
@@ -320,15 +309,20 @@ if st.button("Calculate", key="calculate_button"):
         st.session_state.results = None
     else:
         invalid_columns = []
-        current_game_columns = [col for col in st.session_state.df.columns if col.startswith('game')]
-        
-        for col_name in current_game_columns:
-            total_slashes_in_column = df_to_process[col_name].astype(str).str.count('l').sum()
-            if total_slashes_in_column % 4 != 0:
-                invalid_columns.append(col_name)
+        if len(df_to_process.columns) >= 24:
+            for col_idx in range(4, 24):
+                if col_idx < len(df_to_process.columns):
+                    total_slashes_in_column = df_to_process.iloc[:dynamic_last_row_to_process, col_idx].astype(str).str.count('l').sum()
+                    if total_slashes_in_column % 4 != 0:
+                        invalid_columns.append(df_to_process.columns[col_idx])
+        else:
+            st.session_state.warning_message = "The table does not have enough columns for full game data validation (expected at least 24 columns for 'game1' to 'game20')."
 
         if invalid_columns:
-            st.session_state.warning_message = f"Game ที่ลูกเเบดไม่ลงตัว: {', '.join(invalid_columns)}"
+            if st.session_state.warning_message:
+                st.session_state.warning_message += f"\n\nAdditionally, the total slash count in the following columns is not divisible by 4: {', '.join(invalid_columns)}"
+            else:
+                st.session_state.warning_message = f"Game ที่ลูกเเบดไม่ลงตัว: {', '.join(invalid_columns)}"
 
         updated_df, results = process_table_data(
             df_to_process, shuttle_val, walkin_val, court_val, real_shuttle_val,
@@ -356,10 +350,7 @@ st.subheader("Download ตารางตีก๊วน")
 
 if st.session_state.results:
     date_text_for_image = st.session_state.current_date.strftime("%d/%m/%Y")
-    
-    columns_to_include_in_image = ["Name", "Time", "Total /", "Price"] + st.session_state.current_game_cols
-    
-    image_bytes = dataframe_to_image(st.session_state.df, date_text_for_image, columns_to_include_in_image)
+    image_bytes = dataframe_to_image(st.session_state.df, date_text_for_image)
 
     st.download_button(
         label="Download Table as Image",
