@@ -248,22 +248,23 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-if 'main_data_editor' in st.session_state:
-    edited_rows = st.session_state.main_data_editor.get('edited_rows', {})
-    edited_cols = st.session_state.main_data_editor.get('edited_columns', {})
+# The code to display the warning message has been removed.
+# if 'main_data_editor' in st.session_state:
+#     edited_rows = st.session_state.main_data_editor.get('edited_rows', {})
+#     edited_cols = st.session_state.main_data_editor.get('edited_columns', {})
 
-    if edited_rows:
-        edited_row_key = next(iter(edited_rows))
-        try:
-            row_index = int(edited_row_key) + 1
-        except (ValueError, TypeError):
-            row_index = edited_row_key
+#     if edited_rows:
+#         edited_row_key = next(iter(edited_rows))
+#         try:
+#             row_index = int(edited_row_key) + 1
+#         except (ValueError, TypeError):
+#             row_index = edited_row_key
 
-        if edited_cols:
-            edited_col_name = next(iter(edited_cols))
-            st.warning(f"คุณกำลังแก้ไขแถวที่ **{row_index}**, คอลัมน์ **{edited_col_name}**")
-        else:
-            st.warning(f"คุณกำลังแก้ไขแถวที่ **{row_index}**")
+#         if edited_cols:
+#             edited_col_name = next(iter(edited_cols))
+#             st.warning(f"คุณกำลังแก้ไขแถวที่ **{row_index}**, คอลัมน์ **{edited_col_name}**")
+#         else:
+#             st.warning(f"คุณกำลังแก้ไขแถวที่ **{row_index}**")
 
 column_configuration = {
     "_index": st.column_config.Column(
