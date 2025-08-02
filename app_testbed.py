@@ -15,7 +15,7 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
     processed_data = [list(row) for row in processed_data_list]
 
     total_shuttlecock_grand = 0
-    total_games = 0  # Initialize a counter for games played
+    total_games = 0
 
     for i in range(last_row_to_process):
         if i >= len(processed_data):
@@ -34,10 +34,6 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
             if col_idx < len(processed_data[i]):
                 cell_value = str(processed_data[i][col_idx])
                 total_row_slashes += cell_value.count('l')
-        
-        # Increment the total games counter if this row has at least one slash
-        # This logic needs to be more precise. We should count columns, not rows.
-        # Let's move the game count logic outside the row loop.
 
         total_shuttlecock_grand += total_row_slashes
 
@@ -55,8 +51,6 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
                 processed_data[i].append('')
             processed_data[i][3] = (total_row_slashes * walkin_val) + walkin_val
 
-    # Calculate total games from the entire table after processing all rows
-    # A game is considered played if at least one cell in that column has 'l'
     for col_idx in range(4, 24):
         column_contains_slash = False
         for i in range(last_row_to_process):
@@ -86,7 +80,7 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
 
     results = {
         "total_slashes": total_shuttlecock_grand,
-        "total_games": total_games,  # Add total games to the results
+        "total_games": total_games,
         "old_solution_sum": old_solution_sum,
         "net_price_sum": sum_e,
         "new_solution_minus_old_solution": sum_e - old_solution_sum,
@@ -98,21 +92,22 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
     return updated_table_df, results
 
 
-def dataframe_to_image(df, date_text=""):
+def dataframe_to_image(df, date_text="", results=None):
     """
     Converts a pandas DataFrame to a Pillow Image object with aligned columns,
-    and adds a title and a date.
+    and adds a title, a date, and the summary section.
     """
     try:
         font_path = "THSarabunNew.ttf"
         font = ImageFont.truetype(font_path, 20)
         title_font = ImageFont.truetype(font_path, 28)
+        summary_font = ImageFont.truetype(font_path, 22)
     except IOError:
         st.warning(f"Font file '{font_path}' not found. Using default font.")
         font = ImageFont.load_default()
         title_font = ImageFont.load_default()
+        summary_font = ImageFont.load_default()
 
-    # Determine which columns to include in the image.
     game_columns = [col for col in df.columns if col.startswith('game')]
     columns_to_include = ["Name", "Time", "Total /", "Price"]
     for col in game_columns:
@@ -137,8 +132,23 @@ def dataframe_to_image(df, date_text=""):
     title_text = "ตารางก๊วน"
     title_height = title_font.getbbox(title_text)[3] - title_font.getbbox(title_text)[1]
     
+    summary_text = ""
+    summary_height = 0
+    if results:
+        summary_text = (
+            f"สรุป:\n"
+            f"จำนวนเกมที่เล่น: {results['total_games']}\n"
+            f"จำนวนลูกเเบดที่ใช้ทั้งหมด: {results['total_slashes']/4:.2f} units\n"
+            f"คิดราคาเเบบเก่า: {results['old_solution_sum']:.2f}\n"
+            f"คิดราคาเเบบใหม่: {results['net_price_sum']:.2f}\n"
+            f"ราคาใหม่ - ราคาเก่า: {results['new_solution_minus_old_solution']:.2f}"
+        )
+        summary_lines = summary_text.split('\n')
+        summary_line_height = summary_font.getbbox("A")[3] - summary_font.getbbox("A")[1]
+        summary_height = len(summary_lines) * (summary_line_height + 5) + 20
+
     img_width = total_width + 40
-    img_height = title_height + line_height + 20 + header_height + (len(df_for_image) * row_height) + 40
+    img_height = title_height + line_height + 20 + header_height + (len(df_for_image) * row_height) + 40 + summary_height
     
     img = Image.new('RGB', (img_width, img_height), color='white')
     draw = ImageDraw.Draw(img)
@@ -178,6 +188,15 @@ def dataframe_to_image(df, date_text=""):
             current_x += column_widths[col] + column_padding
         y_offset += row_height
     
+    # Draw the summary section
+    if results:
+        y_offset += 20  # Add a little space between table and summary
+        summary_lines = summary_text.split('\n')
+        for line in summary_lines:
+            draw.text((x_offset, y_offset), line, font=summary_font, fill='black')
+            summary_line_height = summary_font.getbbox("A")[3] - summary_font.getbbox("A")[1]
+            y_offset += summary_line_height + 5
+            
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
@@ -241,7 +260,6 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-# Check for edits to display a message
 if 'main_data_editor' in st.session_state:
     edited_rows = st.session_state.main_data_editor.get('edited_rows', {})
     edited_cols = st.session_state.main_data_editor.get('edited_columns', {})
@@ -343,7 +361,7 @@ if st.session_state.warning_message:
 st.header("สรุป")
 if st.session_state.results:
     st.write(f"**จำนวนเกมที่เล่น:** {st.session_state.results['total_games']}")
-    st.write(f"**จำนวนลูกเเบดที่ใช้ทั้งหมด:** {st.session_state.results['total_slashes']/4} units")
+    st.write(f"**จำนวนลูกเเบดที่ใช้ทั้งหมด:** {st.session_state.results['total_slashes']/4:.2f} units")
     st.write(f"**คิดราคาเเบบเก่า:** {st.session_state.results['old_solution_sum']:.2f}")
     st.write(f"**คิดราคาเเบบใหม่:** {st.session_state.results['net_price_sum']:.2f}")
     st.write(f"**ราคาใหม่ - ราคาเก่า:** {st.session_state.results['new_solution_minus_old_solution']:.2f}")
@@ -355,7 +373,7 @@ st.subheader("Download ตารางตีก๊วน")
 
 if st.session_state.results:
     date_text_for_image = st.session_state.current_date.strftime("%d/%m/%Y")
-    image_bytes = dataframe_to_image(st.session_state.df, date_text_for_image)
+    image_bytes = dataframe_to_image(st.session_state.df, date_text_for_image, results=st.session_state.results)
 
     st.download_button(
         label="Download Table as Image",
