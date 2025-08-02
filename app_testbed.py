@@ -20,11 +20,10 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
     # Loop through rows up to dynamic_last_row_to_process
     for i in range(last_row_to_process):
         if i >= len(processed_data):
-            break  # Stop if we exceed the actual number of rows
+            break
 
         name_cell_value = str(processed_data[i][0]).strip()
         if not name_cell_value:
-            # Clear calculated fields for empty name rows
             if 2 < len(processed_data[i]):
                 processed_data[i][2] = ''
             if 3 < len(processed_data[i]):
@@ -98,7 +97,6 @@ def dataframe_to_image(df, date_text=""):
         font = ImageFont.load_default()
         title_font = ImageFont.load_default()
 
-    # Calculate column widths based on the maximum width of text in each column
     column_widths = {}
     for col in df.columns:
         header_width = font.getbbox(str(col))[2]
@@ -224,24 +222,17 @@ st.header("ตารางก๊วน")
 # Check if a row has been edited to set the highlight
 if 'main_data_editor' in st.session_state and st.session_state.main_data_editor['edited_rows']:
     edited_row_key = next(iter(st.session_state.main_data_editor['edited_rows']))
-    
-    # We need to find the original index of the edited row in the DataFrame
-    # The `edited_row_key` is the a-grid-react index, not our 1-based index
     if isinstance(edited_row_key, int):
-        # This is our original 1-based index
-        st.session_state.highlighted_row_index = edited_row_key
-    elif isinstance(edited_row_key, str) and edited_row_key.isdigit():
-        st.session_state.highlighted_row_index = int(edited_row_key) + 1
+        st.session_state.highlighted_row_index = edited_row_key + 1
     else:
         st.session_state.highlighted_row_index = None
+else:
+    st.session_state.highlighted_row_index = None
+    
+# Use a default integer value for the highlight index to prevent errors in JavaScript
+highlighted_index = st.session_state.highlighted_row_index if st.session_state.highlighted_row_index is not None else -1
 
-
-# Create a copy of the dataframe to add the styling column
-df_to_display = st.session_state.df.copy()
-
-# Add a 'Name (Highlight)' column for styling
-df_to_display.insert(0, 'Name (Highlight)', df_to_display['Name'])
-
+# --- FIXED: Use a single Name column and apply styling directly ---
 column_configuration = {
     "_index": st.column_config.Column(
         "No.",
@@ -249,27 +240,20 @@ column_configuration = {
         disabled=True,
         pinned="left",
     ),
-    "Name (Highlight)": st.column_config.Column(
+    "Name": st.column_config.TextColumn(
         "Name",
         width="small",
         pinned="left",
-        # Use a custom formatter to apply the red box styling
+        # Apply custom cell renderer to the Name column
         cell_renderer=f'''
         function(params) {{
-            if (params.data._index == {st.session_state.highlighted_row_index}) {{
+            if (params.data._index == {highlighted_index}) {{
                 return `<div style="border: 2px solid red; padding: 2px; text-align: center;">${{params.value}}</div>`;
             }} else {{
                 return `<div style="text-align: center;">${{params.value}}</div>`;
             }}
         }}
         ''',
-        disabled=True # Disable this column as it's for display only
-    ),
-    "Name": st.column_config.TextColumn(
-        "Name",
-        width="small",
-        pinned="left",
-        hidden=True # Hide the original Name column
     ),
     "Time": st.column_config.TextColumn(
         "Time",
@@ -288,7 +272,7 @@ column_configuration = {
 }
 
 edited_df = st.data_editor(
-    df_to_display,
+    st.session_state.df,
     column_config=column_configuration,
     num_rows="dynamic",
     use_container_width=True,
@@ -297,14 +281,12 @@ edited_df = st.data_editor(
 
 
 if st.button("Calculate"):
-    cleaned_df = edited_df[edited_df['Name (Highlight)'].astype(str).str.strip() != ''].copy()
-    cleaned_df.rename(columns={'Name (Highlight)': 'Name'}, inplace=True)
-    cleaned_df.drop('Name', axis=1, inplace=True)
-
+    # --- FIXED: The logic is now cleaner as there's no duplicate Name column ---
+    cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
     cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
     
     st.session_state.df = cleaned_df
-    st.session_state.highlighted_row_index = None # Reset the highlight
+    st.session_state.highlighted_row_index = None
 
     st.session_state.warning_message = ""
 
