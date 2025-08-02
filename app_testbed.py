@@ -244,12 +244,9 @@ edited_df = st.data_editor(
     st.session_state.df,
     num_rows="dynamic",
     use_container_width=True,
-    hide_index=False,  # show the index column
-    column_config={
-        "Name": st.column_config.TextColumn("Name", frozen=True)
-    },
     key="main_data_editor"
 )
+
 
 
 if st.button("Calculate"):
@@ -320,4 +317,5 @@ if st.session_state.results:
     )
 else:
     st.info("Calculate the results first to enable the download button.")
+
 
