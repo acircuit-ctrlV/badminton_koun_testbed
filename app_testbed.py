@@ -191,8 +191,6 @@ if 'warning_message' not in st.session_state:
     st.session_state.warning_message = ""
 if 'current_date' not in st.session_state:
     st.session_state.current_date = date.today()
-if 'highlighted_row_index' not in st.session_state:
-    st.session_state.highlighted_row_index = None
 
 st.title("คิดเงินค่าตีก๊วน")
 
@@ -217,23 +215,23 @@ with col4:
 
 st.header("ตารางก๊วน")
 
+# Check for edits to display a message
 if 'main_data_editor' in st.session_state and st.session_state.main_data_editor['edited_rows']:
-    edited_row_key = next(iter(st.session_state.main_data_editor['edited_rows']))
-    
-    # --- FIXED: Correctly handle 0-based Ag-Grid index to 1-based DataFrame index ---
-    try:
-        ag_grid_row_index = int(edited_row_key)
-        st.session_state.highlighted_row_index = ag_grid_row_index + 1
-    except (ValueError, TypeError):
-        st.session_state.highlighted_row_index = None
-else:
-    st.session_state.highlighted_row_index = None
-    
-# Use a default integer value for the highlight index to prevent errors in JavaScript
-highlighted_index = st.session_state.highlighted_row_index if st.session_state.highlighted_row_index is not None else -1
+    edited_rows = st.session_state.main_data_editor['edited_rows']
+    edited_cols = st.session_state.main_data_editor['edited_columns']
 
-df_to_display = st.session_state.df.copy()
-df_to_display.insert(0, 'Name (Highlight)', df_to_display['Name'])
+    if edited_rows:
+        edited_row_key = next(iter(edited_rows))
+        try:
+            row_index = int(edited_row_key) + 1
+        except (ValueError, TypeError):
+            row_index = edited_row_key
+        
+        if edited_cols:
+            edited_col_name = next(iter(edited_cols))
+            st.warning(f"คุณกำลังแก้ไขแถวที่ **{row_index}**, คอลัมน์ **{edited_col_name}**")
+        else:
+            st.warning(f"คุณกำลังแก้ไขแถวที่ **{row_index}**")
 
 column_configuration = {
     "_index": st.column_config.Column(
@@ -242,26 +240,10 @@ column_configuration = {
         disabled=True,
         pinned="left",
     ),
-    "Name (Highlight)": st.column_config.Column(
-        "Name",
-        width="small",
-        pinned="left",
-        cell_renderer=f'''
-        function(params) {{
-            if (params.data._index == {highlighted_index}) {{
-                return `<div style="border: 2px solid red; padding: 2px; text-align: center;">${{params.value}}</div>`;
-            }} else {{
-                return `<div style="text-align: center;">${{params.value}}</div>`;
-            }}
-        }}
-        ''',
-        disabled=True
-    ),
     "Name": st.column_config.TextColumn(
         "Name",
         width="small",
         pinned="left",
-        hidden=True
     ),
     "Time": st.column_config.TextColumn(
         "Time",
@@ -280,24 +262,20 @@ column_configuration = {
 }
 
 edited_df = st.data_editor(
-    df_to_display,
+    st.session_state.df,
     column_config=column_configuration,
     num_rows="dynamic",
     use_container_width=True,
     key="main_data_editor"
 )
 
-
 if st.button("Calculate"):
     cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
-    
-    cleaned_df.drop('Name (Highlight)', axis=1, inplace=True)
     
     cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
     
     st.session_state.df = cleaned_df
-    st.session_state.highlighted_row_index = None
-
+    
     st.session_state.warning_message = ""
 
     df_to_process = st.session_state.df.fillna('')
