@@ -159,8 +159,6 @@ def dataframe_to_image(df, date_text="", results=None):
     date_y = y_offset + (title_height - (font.getbbox(date_text)[3] - font.getbbox(date_text)[1])) / 2
     draw.text((date_x, date_y), date_text, font=font, fill='black')
 
-    # Removed the code that draws the red box here
-
     y_offset_start = y_offset + title_height + 10
     y_offset = y_offset_start
     
@@ -236,7 +234,7 @@ with col_date_picker:
 with col_date_display:
     st.session_state.current_date = selected_date
     date_to_display = st.session_state.current_date.strftime("%d/%m/%Y")
-    st.markdown(f'<div style="border:2px solid red; padding:5px; margin-top:20px; width: fit-content;">{date_to_display}</div>', unsafe_allow_html=True)
+    # st.markdown(f'<div style="border:2px solid red; padding:5px; margin-top:20px; width: fit-content;">{date_to_display}</div>', unsafe_allow_html=True)
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
