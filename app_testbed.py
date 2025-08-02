@@ -261,12 +261,16 @@ column_configuration = {
     ),
 }
 
+# Define the initial column order to be displayed
+initial_column_order = ["Name", "Time", "Total /", "Price", "game1", "game2", "game3", "game4", "game5"]
+
 edited_df = st.data_editor(
     st.session_state.df,
     column_config=column_configuration,
     num_rows="dynamic",
     use_container_width=True,
-    key="main_data_editor"
+    key="main_data_editor",
+    column_order=initial_column_order  # <-- Pass the initial column order here
 )
 
 if st.button("Calculate"):
