@@ -138,10 +138,7 @@ def dataframe_to_image(df, date_text="", results=None):
         summary_text = (
             f"สรุป:\n"
             f"จำนวนเกมที่เล่น: {results['total_games']}\n"
-            f"จำนวนลูกเเบดที่ใช้ทั้งหมด: {results['total_slashes']/4:.2f} units\n"
-            f"คิดราคาเเบบเก่า: {results['old_solution_sum']:.2f}\n"
-            f"คิดราคาเเบบใหม่: {results['net_price_sum']:.2f}\n"
-            f"ราคาใหม่ - ราคาเก่า: {results['new_solution_minus_old_solution']:.2f}"
+            f"จำนวนลูกเเบดที่ใช้ทั้งหมด: {results['total_slashes']/4:.2f} units"
         )
         summary_lines = summary_text.split('\n')
         summary_line_height = summary_font.getbbox("A")[3] - summary_font.getbbox("A")[1]
