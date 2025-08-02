@@ -91,7 +91,6 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
     }
 
     # Convert the processed list of lists back to a DataFrame
-    # --- MODIFIED: Create a new index based on the length of processed_data ---
     new_index = np.arange(1, len(processed_data) + 1)
     updated_table_df = pd.DataFrame(processed_data, columns=table_data_df.columns, index=new_index)
     return updated_table_df, results
@@ -209,7 +208,6 @@ for row in initial_data_list:
         row.append("")
 
 if 'df' not in st.session_state:
-    # --- MODIFIED: Create a new DataFrame with a 1-based index ---
     initial_df = pd.DataFrame(initial_data_list, columns=headers)
     initial_df.index = np.arange(1, len(initial_df) + 1)
     st.session_state.df = initial_df
@@ -245,11 +243,11 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-# --- MODIFIED: The index column width is now explicitly set to 50 pixels ---
+# --- MODIFIED: Restored editing for Time and game columns ---
 column_configuration = {
     "_index": st.column_config.Column(
         "No.",
-        width=50, # Changed from "small" to a fixed pixel value
+        width=50,
         disabled=True,
         pinned="left",
     ),
@@ -261,12 +259,26 @@ column_configuration = {
     "Time": st.column_config.TextColumn(
         "Time",
         width="small",
+        # Removed: disabled=True
+    ),
+    "Total /": st.column_config.NumberColumn(
+        "Total /",
+        width="small",
+        disabled=True,
+    ),
+    "Price": st.column_config.NumberColumn(
+        "Price",
+        width="small",
+        disabled=True,
     ),
 }
 
+# The loop for game columns is now removed as they should be editable
+# The code will now use the default editable behavior for these columns
+
 edited_df = st.data_editor(
     st.session_state.df,
-    column_config=column_configuration, # Pass the configuration here
+    column_config=column_configuration,
     num_rows="dynamic",
     use_container_width=True,
     key="main_data_editor"
@@ -274,17 +286,20 @@ edited_df = st.data_editor(
 
 
 if st.button("Calculate"):
-    st.session_state.df = edited_df
+    # Filter out rows with empty names before processing
+    cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
+    
+    # Re-index the cleaned DataFrame to maintain a continuous 1-based index
+    cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
+    
+    st.session_state.df = cleaned_df
 
     st.session_state.warning_message = ""
 
     df_to_process = st.session_state.df.fillna('')
 
-    dynamic_last_row_to_process = 0
-    for idx, row in df_to_process.iterrows():
-        if str(row['Name']).strip():
-            # Use iloc here to handle the custom index
-            dynamic_last_row_to_process = df_to_process.index.get_loc(idx) + 1
+    # This variable now correctly holds the count of all valid rows
+    dynamic_last_row_to_process = len(df_to_process)
 
     if dynamic_last_row_to_process == 0:
         st.warning("No names found in the table to process. Please enter data in the 'Name' column.")
@@ -294,6 +309,7 @@ if st.button("Calculate"):
         if len(df_to_process.columns) >= 24:
             for col_idx in range(4, 24):
                 if col_idx < len(df_to_process.columns):
+                    # The slice df_to_process.iloc[:dynamic_last_row_to_process] now correctly checks all rows
                     total_slashes_in_column = df_to_process.iloc[:dynamic_last_row_to_process, col_idx].astype(str).str.count('l').sum()
                     if total_slashes_in_column % 4 != 0:
                         invalid_columns.append(df_to_process.columns[col_idx])
@@ -342,4 +358,3 @@ if st.session_state.results:
     )
 else:
     st.info("Calculate the results first to enable the download button.")
-
