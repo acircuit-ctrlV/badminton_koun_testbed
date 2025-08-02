@@ -11,13 +11,11 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
     Processes the DataFrame: counts slashes, performs calculations,
     and returns updated DataFrame and results.
     """
-    # Convert DataFrame to a list of lists for easier cell-level manipulation
     processed_data_list = table_data_df.values.tolist()
     processed_data = [list(row) for row in processed_data_list]
 
     total_shuttlecock_grand = 0
 
-    # Loop through rows up to dynamic_last_row_to_process
     for i in range(last_row_to_process):
         if i >= len(processed_data):
             break
@@ -219,20 +217,19 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-# Check if a row has been edited to set the highlight
 if 'main_data_editor' in st.session_state and st.session_state.main_data_editor['edited_rows']:
     edited_row_key = next(iter(st.session_state.main_data_editor['edited_rows']))
-    if isinstance(edited_row_key, int):
-        st.session_state.highlighted_row_index = edited_row_key + 1
-    else:
-        st.session_state.highlighted_row_index = None
+    st.session_state.highlighted_row_index = edited_row_key
 else:
     st.session_state.highlighted_row_index = None
     
 # Use a default integer value for the highlight index to prevent errors in JavaScript
 highlighted_index = st.session_state.highlighted_row_index if st.session_state.highlighted_row_index is not None else -1
 
-# --- FIXED: Use a single Name column and apply styling directly ---
+df_to_display = st.session_state.df.copy()
+# Insert a new column to be the visible, styled column
+df_to_display.insert(0, 'Name (Highlight)', df_to_display['Name'])
+
 column_configuration = {
     "_index": st.column_config.Column(
         "No.",
@@ -240,11 +237,10 @@ column_configuration = {
         disabled=True,
         pinned="left",
     ),
-    "Name": st.column_config.TextColumn(
+    "Name (Highlight)": st.column_config.Column(
         "Name",
         width="small",
         pinned="left",
-        # Apply custom cell renderer to the Name column
         cell_renderer=f'''
         function(params) {{
             if (params.data._index == {highlighted_index}) {{
@@ -254,6 +250,13 @@ column_configuration = {
             }}
         }}
         ''',
+        disabled=True # This column is for display only
+    ),
+    "Name": st.column_config.TextColumn(
+        "Name",
+        width="small",
+        pinned="left",
+        hidden=True # This is the editable column, hidden from view
     ),
     "Time": st.column_config.TextColumn(
         "Time",
@@ -272,7 +275,7 @@ column_configuration = {
 }
 
 edited_df = st.data_editor(
-    st.session_state.df,
+    df_to_display,
     column_config=column_configuration,
     num_rows="dynamic",
     use_container_width=True,
@@ -281,8 +284,14 @@ edited_df = st.data_editor(
 
 
 if st.button("Calculate"):
-    # --- FIXED: The logic is now cleaner as there's no duplicate Name column ---
+    # The `edited_df` contains both the editable 'Name' and the display 'Name (Highlight)'
+    # The actual edits are in the 'Name' column.
+    
     cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
+    
+    # Drop the display-only column
+    cleaned_df.drop('Name (Highlight)', axis=1, inplace=True)
+    
     cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
     
     st.session_state.df = cleaned_df
