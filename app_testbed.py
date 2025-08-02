@@ -158,16 +158,9 @@ def dataframe_to_image(df, date_text="", results=None):
     date_x = x_offset + title_font.getbbox(title_text)[2] + 20
     date_y = y_offset + (title_height - (font.getbbox(date_text)[3] - font.getbbox(date_text)[1])) / 2
     draw.text((date_x, date_y), date_text, font=font, fill='black')
-    
-    box_padding = 5
-    box_coords = [
-        date_x - box_padding,
-        date_y - box_padding,
-        date_x + font.getbbox(date_text)[2] + box_padding,
-        date_y + (font.getbbox(date_text)[3] - font.getbbox(date_text)[1]) + box_padding
-    ]
-    draw.rectangle(box_coords, outline="red", width=2)
-    
+
+    # Removed the code that draws the red box here
+
     y_offset_start = y_offset + title_height + 10
     y_offset = y_offset_start
     
