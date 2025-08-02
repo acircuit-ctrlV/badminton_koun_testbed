@@ -31,55 +31,44 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
                 processed_data[i][3] = ''
             continue
 
-        # --- CHANGE: Counting 'l' instead of '/' ---
         total_row_slashes = 0
-        # Iterate through game columns (indices 4 to 23)
         for col_idx in range(4, 24):
-            if col_idx < len(processed_data[i]):  # Ensure column exists for the current row
+            if col_idx < len(processed_data[i]):
                 cell_value = str(processed_data[i][col_idx])
                 total_row_slashes += cell_value.count('l')
 
         total_shuttlecock_grand += total_row_slashes
 
-        # Update 'Total /' column (index 2)
         if 2 < len(processed_data[i]):
             processed_data[i][2] = total_row_slashes
         else:
-            # Extend row if it's too short for this column
             while len(processed_data[i]) <= 2:
                 processed_data[i].append('')
             processed_data[i][2] = total_row_slashes
 
-        # Update 'Price' column (index 3)
         if 3 < len(processed_data[i]):
             processed_data[i][3] = (total_row_slashes * shuttle_val) + walkin_val
         else:
-            # Extend row if it's too short for this column
             while len(processed_data[i]) <= 3:
                 processed_data[i].append('')
             processed_data[i][3] = (total_row_slashes * walkin_val) + walkin_val
 
-    # --- REMOVED: This block of code was padding the table with empty rows
-    # while len(processed_data) < 23:
-    #     processed_data.append([''] * len(table_data_df.columns))
-
-    sum_d = 0  # Sum of 'Total /' column
-    sum_e = 0  # Sum of 'Price' column
+    sum_d = 0
+    sum_e = 0
     for i in range(0, last_row_to_process):
-        if i < len(processed_data):  # Ensure row exists
-            if str(processed_data[i][0]).strip():  # Only sum if 'Name' column is not empty
-                if 2 < len(processed_data[i]):  # Check if 'Total /' column exists
+        if i < len(processed_data):
+            if str(processed_data[i][0]).strip():
+                if 2 < len(processed_data[i]):
                     try:
                         sum_d += float(processed_data[i][2])
                     except (ValueError, TypeError):
-                        pass  # Ignore if value is not a number
-                if 3 < len(processed_data[i]):  # Check if 'Price' column exists
+                        pass
+                if 3 < len(processed_data[i]):
                     try:
                         sum_e += float(processed_data[i][3])
                     except (ValueError, TypeError):
-                        pass  # Ignore if value is not a number
+                        pass
 
-    # New calculations from the VBA code
     old_solution_sum = ((total_shuttlecock_grand / 4) * real_shuttle_val) + court_val
 
     results = {
@@ -87,10 +76,9 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
         "old_solution_sum": old_solution_sum,
         "net_price_sum": sum_e,
         "new_solution_minus_old_solution": sum_e - old_solution_sum,
-        "sum_D": sum_d  # This is the sum of 'Total /' column
+        "sum_D": sum_d
     }
 
-    # Convert the processed list of lists back to a DataFrame
     new_index = np.arange(1, len(processed_data) + 1)
     updated_table_df = pd.DataFrame(processed_data, columns=table_data_df.columns, index=new_index)
     return updated_table_df, results
@@ -113,20 +101,16 @@ def dataframe_to_image(df, date_text=""):
     # Calculate column widths based on the maximum width of text in each column
     column_widths = {}
     for col in df.columns:
-        # Get the width of the column header
         header_width = font.getbbox(str(col))[2]
-        # Get the max width of all cell values in the column
         max_value_width = max([font.getbbox(str(item))[2] for item in df[col]]) if not df[col].empty else 0
         column_widths[col] = max(header_width, max_value_width)
 
-    # Add some padding to each column
     column_padding = 10
     total_width = sum(column_widths.values()) + (len(column_widths) + 1) * column_padding
     
-    # Calculate image dimensions
     line_height = font.getbbox("A")[3] - font.getbbox("A")[1]
     header_height = line_height + column_padding
-    row_height = line_height + 5  # Add a little extra space for rows
+    row_height = line_height + 5
     
     title_text = "ตารางก๊วน"
     title_height = title_font.getbbox(title_text)[3] - title_font.getbbox(title_text)[1]
@@ -134,22 +118,18 @@ def dataframe_to_image(df, date_text=""):
     img_width = total_width + 40
     img_height = title_height + line_height + 20 + header_height + (len(df) * row_height) + 40
     
-    # Create the image
     img = Image.new('RGB', (img_width, img_height), color='white')
     draw = ImageDraw.Draw(img)
     
     x_offset = 20
     y_offset = 20
     
-    # Draw title
     draw.text((x_offset, y_offset), title_text, font=title_font, fill='black')
     
-    # Draw the date
     date_x = x_offset + title_font.getbbox(title_text)[2] + 20
     date_y = y_offset + (title_height - (font.getbbox(date_text)[3] - font.getbbox(date_text)[1])) / 2
     draw.text((date_x, date_y), date_text, font=font, fill='black')
     
-    # Draw the red box around the date
     box_padding = 5
     box_coords = [
         date_x - box_padding,
@@ -162,7 +142,6 @@ def dataframe_to_image(df, date_text=""):
     y_offset_start = y_offset + title_height + 10
     y_offset = y_offset_start
     
-    # Draw headers
     current_x = x_offset
     for col in df.columns:
         draw.text((current_x, y_offset), str(col), font=font, fill='black')
@@ -170,7 +149,6 @@ def dataframe_to_image(df, date_text=""):
         
     y_offset += header_height
     
-    # Draw data rows
     for _, row in df.iterrows():
         current_x = x_offset
         for col in df.columns:
@@ -217,10 +195,11 @@ if 'warning_message' not in st.session_state:
     st.session_state.warning_message = ""
 if 'current_date' not in st.session_state:
     st.session_state.current_date = date.today()
+if 'highlighted_row_index' not in st.session_state:
+    st.session_state.highlighted_row_index = None
 
 st.title("คิดเงินค่าตีก๊วน")
 
-# --- Date input and display ---
 st.header("ใส่ข้อมูล")
 col_date_picker, col_date_display = st.columns([1, 4])
 with col_date_picker:
@@ -230,7 +209,6 @@ with col_date_display:
     date_to_display = st.session_state.current_date.strftime("%d/%m/%Y")
     st.markdown(f'<div style="border:2px solid red; padding:5px; margin-top:20px; width: fit-content;">{date_to_display}</div>', unsafe_allow_html=True)
 
-# --- Input Parameters ---
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     shuttle_val = st.number_input("ค่าลูก:", value=20, step=1)
@@ -243,6 +221,27 @@ with col4:
 
 st.header("ตารางก๊วน")
 
+# Check if a row has been edited to set the highlight
+if 'main_data_editor' in st.session_state and st.session_state.main_data_editor['edited_rows']:
+    edited_row_key = next(iter(st.session_state.main_data_editor['edited_rows']))
+    
+    # We need to find the original index of the edited row in the DataFrame
+    # The `edited_row_key` is the a-grid-react index, not our 1-based index
+    if isinstance(edited_row_key, int):
+        # This is our original 1-based index
+        st.session_state.highlighted_row_index = edited_row_key
+    elif isinstance(edited_row_key, str) and edited_row_key.isdigit():
+        st.session_state.highlighted_row_index = int(edited_row_key) + 1
+    else:
+        st.session_state.highlighted_row_index = None
+
+
+# Create a copy of the dataframe to add the styling column
+df_to_display = st.session_state.df.copy()
+
+# Add a 'Name (Highlight)' column for styling
+df_to_display.insert(0, 'Name (Highlight)', df_to_display['Name'])
+
 column_configuration = {
     "_index": st.column_config.Column(
         "No.",
@@ -250,10 +249,27 @@ column_configuration = {
         disabled=True,
         pinned="left",
     ),
+    "Name (Highlight)": st.column_config.Column(
+        "Name",
+        width="small",
+        pinned="left",
+        # Use a custom formatter to apply the red box styling
+        cell_renderer=f'''
+        function(params) {{
+            if (params.data._index == {st.session_state.highlighted_row_index}) {{
+                return `<div style="border: 2px solid red; padding: 2px; text-align: center;">${{params.value}}</div>`;
+            }} else {{
+                return `<div style="text-align: center;">${{params.value}}</div>`;
+            }}
+        }}
+        ''',
+        disabled=True # Disable this column as it's for display only
+    ),
     "Name": st.column_config.TextColumn(
         "Name",
         width="small",
         pinned="left",
+        hidden=True # Hide the original Name column
     ),
     "Time": st.column_config.TextColumn(
         "Time",
@@ -272,7 +288,7 @@ column_configuration = {
 }
 
 edited_df = st.data_editor(
-    st.session_state.df,
+    df_to_display,
     column_config=column_configuration,
     num_rows="dynamic",
     use_container_width=True,
@@ -281,13 +297,14 @@ edited_df = st.data_editor(
 
 
 if st.button("Calculate"):
-    # Filter out rows with empty names before processing
-    cleaned_df = edited_df[edited_df['Name'].astype(str).str.strip() != ''].copy()
-    
-    # Re-index the cleaned DataFrame to maintain a continuous 1-based index
+    cleaned_df = edited_df[edited_df['Name (Highlight)'].astype(str).str.strip() != ''].copy()
+    cleaned_df.rename(columns={'Name (Highlight)': 'Name'}, inplace=True)
+    cleaned_df.drop('Name', axis=1, inplace=True)
+
     cleaned_df.index = np.arange(1, len(cleaned_df) + 1)
     
     st.session_state.df = cleaned_df
+    st.session_state.highlighted_row_index = None # Reset the highlight
 
     st.session_state.warning_message = ""
 
