@@ -215,6 +215,12 @@ if 'warning_message' not in st.session_state:
 if 'current_date' not in st.session_state:
     st.session_state.current_date = date.today()
 
+# New state for the edited data
+if 'edited_name_df' not in st.session_state:
+    st.session_state.edited_name_df = st.session_state.df[['Name']]
+if 'edited_other_df' not in st.session_state:
+    st.session_state.edited_other_df = st.session_state.df.drop(columns=['Name'])
+
 st.title("คิดเงินค่าตีก๊วน")
 
 # --- Date input and display ---
@@ -240,13 +246,40 @@ with col4:
 
 st.header("ตารางก๊วน")
 
-edited_df = st.data_editor(st.session_state.df, num_rows="dynamic", use_container_width=True, key="main_data_editor")
+# Create a two-column layout: one for names, one for the rest of the table
+col_names, col_data = st.columns([1, 6])
 
+with col_names:
+    st.markdown("### ชื่อ")
+    edited_name_df = st.data_editor(st.session_state.edited_name_df,
+                                    hide_index=True,
+                                    num_rows="dynamic",
+                                    use_container_width=True,
+                                    key="name_editor")
+    
+with col_data:
+    st.markdown("### ข้อมูลเกม")
+    edited_other_df = st.data_editor(st.session_state.edited_other_df,
+                                     num_rows="dynamic",
+                                     use_container_width=True,
+                                     key="data_editor")
+
+# The button now needs to merge the two edited dataframes before processing
 if st.button("Calculate"):
-    st.session_state.df = edited_df
+    # Synchronize the number of rows between the two dataframes
+    max_rows = max(len(edited_name_df), len(edited_other_df))
+    
+    # Pad the smaller dataframe with empty rows if needed
+    if len(edited_name_df) < max_rows:
+        edited_name_df = pd.concat([edited_name_df, pd.DataFrame([''] * (max_rows - len(edited_name_df)), columns=['Name'])], ignore_index=True)
+    if len(edited_other_df) < max_rows:
+        edited_other_df = pd.concat([edited_other_df, pd.DataFrame([''] * (max_rows - len(edited_other_df)), columns=edited_other_df.columns)], ignore_index=True)
 
+    # Re-assemble the full DataFrame
+    merged_df = pd.concat([edited_name_df, edited_other_df], axis=1)
+    st.session_state.df = merged_df
+    
     st.session_state.warning_message = ""
-
     df_to_process = st.session_state.df.fillna('')
 
     dynamic_last_row_to_process = 0
@@ -280,6 +313,10 @@ if st.button("Calculate"):
         )
         st.session_state.df = updated_df
         st.session_state.results = results
+        
+        # Update the state of the two separated dataframes for display
+        st.session_state.edited_name_df = updated_df[['Name']]
+        st.session_state.edited_other_df = updated_df.drop(columns=['Name'])
 
         st.rerun()
         
