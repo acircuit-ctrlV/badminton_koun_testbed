@@ -84,7 +84,7 @@ def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_s
 def dataframe_to_image(df, date_text=""):
     """
     Converts a pandas DataFrame to a Pillow Image object with aligned columns,
-    and adds a title and a date.
+    and adds a title and a date. Only includes game columns that have 'l' marks.
     """
     try:
         font_path = "THSarabunNew.ttf"
@@ -95,10 +95,22 @@ def dataframe_to_image(df, date_text=""):
         font = ImageFont.load_default()
         title_font = ImageFont.load_default()
 
+    # Determine which columns to include in the image.
+    # We will only include the "game" columns that have at least one 'l'.
+    game_columns = [col for col in df.columns if col.startswith('game')]
+    columns_to_include = ["Name", "Time", "Total /", "Price"]
+    for col in game_columns:
+        if df[col].astype(str).str.contains('l').any():
+            columns_to_include.append(col)
+
+    # Create a new DataFrame with only the selected columns.
+    df_for_image = df[columns_to_include].copy()
+
+    # Recalculate column widths based on the new DataFrame
     column_widths = {}
-    for col in df.columns:
+    for col in df_for_image.columns:
         header_width = font.getbbox(str(col))[2]
-        max_value_width = max([font.getbbox(str(item))[2] for item in df[col]]) if not df[col].empty else 0
+        max_value_width = max([font.getbbox(str(item))[2] for item in df_for_image[col]]) if not df_for_image[col].empty else 0
         column_widths[col] = max(header_width, max_value_width)
 
     column_padding = 10
@@ -112,7 +124,7 @@ def dataframe_to_image(df, date_text=""):
     title_height = title_font.getbbox(title_text)[3] - title_font.getbbox(title_text)[1]
     
     img_width = total_width + 40
-    img_height = title_height + line_height + 20 + header_height + (len(df) * row_height) + 40
+    img_height = title_height + line_height + 20 + header_height + (len(df_for_image) * row_height) + 40
     
     img = Image.new('RGB', (img_width, img_height), color='white')
     draw = ImageDraw.Draw(img)
@@ -139,15 +151,15 @@ def dataframe_to_image(df, date_text=""):
     y_offset = y_offset_start
     
     current_x = x_offset
-    for col in df.columns:
+    for col in df_for_image.columns:
         draw.text((current_x, y_offset), str(col), font=font, fill='black')
         current_x += column_widths[col] + column_padding
         
     y_offset += header_height
     
-    for _, row in df.iterrows():
+    for _, row in df_for_image.iterrows():
         current_x = x_offset
-        for col in df.columns:
+        for col in df_for_image.columns:
             draw.text((current_x, y_offset), str(row[col]), font=font, fill='black')
             current_x += column_widths[col] + column_padding
         y_offset += row_height
