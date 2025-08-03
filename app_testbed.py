@@ -4,7 +4,40 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import io
 from datetime import date
+import base64
 
+# --- Function to encode a local image to a base64 string ---
+def get_base64_of_image(image_path):
+    """Encodes a local image to a base64 string for CSS embedding."""
+    try:
+        with open(image_path, "rb") as image_file:
+            # We'll use this for the background image
+            return base64.b64encode(image_file.read()).decode('utf-8')
+    except FileNotFoundError:
+        st.error(f"Error: The image file '{image_path}' was not found. Please ensure it's in the same directory as this script.")
+        return None
+
+# --- Main app code starts here ---
+
+# Use the correct file name from your GitHub repository.
+background_image_path = "background.jpg"
+base64_image = get_base64_of_image(background_image_path)
+
+if base64_image:
+    # CSS to set the background image
+    background_css = f"""
+    <style>
+    .stApp {{
+        background-image: url("data:image/jpeg;base64,{base64_image}");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }}
+    </style>
+    """
+    # Inject the CSS into the Streamlit app
+    st.markdown(background_css, unsafe_allow_html=True)
+    
 # --- Excel Processing Logic ---
 def process_table_data(table_data_df, shuttle_val, walkin_val, court_val, real_shuttle_val, last_row_to_process):
     """
@@ -249,7 +282,6 @@ with col_date_picker:
 with col_date_display:
     st.session_state.current_date = selected_date
     date_to_display = st.session_state.current_date.strftime("%d/%m/%Y")
-    # st.markdown(f'<div style="border:2px solid red; padding:5px; margin-top:20px; width: fit-content;">{date_to_display}</div>', unsafe_allow_html=True)
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
@@ -291,12 +323,19 @@ column_configuration = {
     ),
 }
 
+# Dynamic height calculation
+num_rows_in_editor = len(st.session_state.df) + 1 # +1 for the "Add row" button
+header_height = 45
+row_height = 35
+calculated_height = header_height + (num_rows_in_editor * row_height) + 10
+
 edited_df = st.data_editor(
     st.session_state.df,
     column_config=column_configuration,
     num_rows="dynamic",
     use_container_width=True,
-    key="main_data_editor"
+    key="main_data_editor",
+    height=calculated_height # Still passing the calculated height
 )
 
 if st.button("Calculate"):
